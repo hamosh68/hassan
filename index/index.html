@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>في أي عصر كنت ستعيش؟</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            background-size: cover;
+            background-attachment: fixed;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            padding: 20px 0;
+            transition: background-color 0.3s, color 0.3s;
+            position: relative;
+            display: flex; /* Added for centering content */
+            align-items: center; /* Added for centering content */
+            justify-content: center; /* Added for centering content */
+        }
+        #backgroundVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            filter: brightness(0.7);
+        }
+        .dark-mode {
+            background: #1a202c;
+            color: #e2e8f0;
+        }
+        .dark-mode .container {
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        .dark-mode select, .dark-mode input {
+            background: #4a5568;
+            color: #e2e8f0;
+            border-color: #718096;
+        }
+        .dark-mode label, .dark-mode p, .dark-mode h1, .dark-mode h3, .dark-mode strong {
+            color: #e2e8f0 !important; /* Ensure dark mode text color applies */
+        }
+        .dark-mode .bg-gray-50 {
+            background-color: #4a5568 !important;
+        }
+        .fade-in {
+            animation: fadeIn 1s ease-in-out;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .language-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+        }
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+        #timelineChart {
+            max-height: 250px;
+            width: 100%;
+            margin-top: 24px;
+        }
+        #map {
+            height: 300px;
+            margin-top: 24px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            z-index: 1; /* Ensure map is above video */
+        }
+        .error-message {
+            color: #dc2626;
+            font-weight: 600;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        img {
+            loading: lazy;
+        }
+        .quiz-container {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+        }
+        .dark-mode .quiz-container {
+             background: rgba(45, 55, 72, 0.9);
+        }
+        .share-button {
+            background: #1DA1F2;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+        .share-button:hover {
+            background: #0d95e8;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center">
+    <video id="backgroundVideo" autoplay loop muted playsinline></video>
+    <div class="language-toggle">
+        <select id="language" onchange="changeLanguage()" class="p-2 rounded-lg bg-white shadow-md cursor-pointer">
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+    <div class="theme-toggle">
+        <button id="themeToggle" class="p-2 rounded-lg bg-gray-200 hover:bg-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+        </button>
+    </div>
+    <div class="container bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-4 my-8 fade-in">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">اكتشف العصر الذي كنت ستعيش فيه!</h1>
+        <div class="mb-6">
+            <label for="firstName" class="block text-lg font-medium text-gray-700 mb-2">أدخل اسمك الأول</label>
+            <input type="text" id="firstName" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="مثال: محمد">
+        </div>
+        <div class="mb-6">
+            <label for="birthdate" class="block text-lg font-medium text-gray-700 mb-2">أدخل تاريخ ميلادك</label>
+            <input type="date" id="birthdate" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="mb-6">
+            <label for="yearsBack" class="block text-lg font-medium text-gray-700 mb-2">اختر عدد السنوات للرجوع إلى الوراء</label>
+            <select id="yearsBack" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                <option value="0">0 سنة (الآن)</option>
+                <option value="70">70 سنة (القرن العشرون المتأخر)</option>
+                <option value="150">150 سنة (العصر الفيكتوري/الثورة الصناعية)</option>
+                <option value="300">300 سنة (عصر التنوير)</option>
+                <option value="500">500 سنة (عصر النهضة)</option>
+                <option value="750">750 سنة (العصور الوسطى المتأخرة/العصر الذهبي الإسلامي)</option>
+                <option value="1000">1000 سنة (العصور الوسطى المبكرة)</option>
+                <option value="1500">1500 سنة (سقوط الإمبراطورية الرومانية)</option>
+                <option value="2000">2000 سنة (العصر الروماني/الميلادي)</option>
+                <option value="3000">3000 سنة (العصر الحديدي)</option>
+                <option value="5000">5000 سنة (العصر البرونزي)</option>
+                <option value="7000">7000 سنة (العصر النحاسي/الزراعة المبكرة)</option>
+                <option value="10500">10500 سنة (العصر الحجري الحديث)</option>
+                <option value="30000">30000 سنة (العصر الحجري القديم الأعلى)</option>
+                <option value="150000">150000 سنة (العصر الحجري القديم الأوسط)</option>
+                <option value="300000">300000 سنة (العصر الحجري القديم الأدنى)</option>
+                <option value="2500000">2,500,000 سنة (بداية العصر الحجري القديم)</option>
+            </select>
+        </div>
+        <div class="flex space-x-4 mb-6">
+            <button id="calculateButton" onclick="calculateEra()" class="flex-1 bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition duration-300">احسب العصر</button>
+            <button id="saveButton" onclick="saveResult()" class="flex-1 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition duration-300">حفظ النتيجة</button>
+            <button id="shareButton" onclick="shareResult()" class="flex-1 share-button">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg>
+                شارك على X
+            </button>
+        </div>
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <span>جاري المعالجة...</span>
+        </div>
+        <div id="result" class="mt-6 text-gray-800"></div>
+        <div id="quiz" class="quiz-container hidden">
+            <h3 class="text-xl font-medium text-gray-700 mb-4">اختبار: من كنت ستكون في هذا العصر؟</h3>
+            <div id="quizQuestions"></div>
+            <button onclick="submitQuiz()" class="mt-4 bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700">إرسال الإجابات</button>
+            <div id="quizResult" class="mt-4"></div>
+        </div>
+        <canvas id="timelineChart" class="mt-6 hidden"></canvas>
+        <div id="map" class="hidden"></div>
+    </div>
+
+    <script>
+        const translations = {
+            ar: {
+                title: "اكتشف العصر الذي كنت ستعيش فيه!",
+                firstNameLabel: "أدخل اسمك الأول",
+                birthdateLabel: "أدخل تاريخ ميلادك",
+                yearsBackLabel: "اختر عدد السنوات للرجوع إلى الوراء",
+                calculate: "احسب العصر",
+                save: "حفظ النتيجة",
+                share: "شارك على X",
+                era: "العصر",
+                description: "الوصف",
+                figures: "شخصيات بارزة",
+                events: "أحداث مهمة",
+                yourBirthdate: "تاريخ ميلادك الافتراضي",
+                whatIf: "ماذا لو كنت",
+                quizTitle: "من كنت ستكون في هذا العصر؟",
+                quizSubmit: "إرسال الإجابات",
+                invalidDate: "تاريخ الميلاد غير صالح. أدخل تاريخًا صحيحًا.",
+                noBirthdate: "الرجاء إدخال تاريخ ميلادك أولاً.",
+                unknownEra: "عصر غير معروف",
+                unknownEraDescription: "لا توجد معلومات كافية عن هذه الفترة.",
+                year: "السنة",
+                now: "الآن",
+                century: "القرن",
+                bce: "ق.م",
+                loading: "جاري المعالجة...",
+                saved: "تم حفظ النتيجة!",
+                saveError: "حدث خطأ أثناء الحفظ.",
+                shareSuccess: "تمت المشاركة على X!",
+                shareError: "حدث خطأ أثناء المشاركة.",
+                mapTitle: "مواقع الأحداث التاريخية",
+                ageInEra: "عمرك في هذا العصر",
+                quizResult: "دورك في العصر",
+                quizAnswerAll: "الرجاء الإجابة على جميع الأسئلة.",
+                howNameWritten: "كيف كان اسمك سيكتب",
+                nameInEra: "اسمك في هذا العصر",
+                nameFormat: "كان اسمك '{name}' سيكتب بـ {format} وقد يُعرف بـ '{eraName}'."
+,
+                options: {
+                    "0": "0 سنة (الآن)",
+                    "70": "70 سنة (القرن العشرون المتأخر)",
+                    "150": "150 سنة (العصر الفيكتوري/الثورة الصناعية)",
+                    "300": "300 سنة (عصر التنوير)",
+                    "500": "500 سنة (عصر النهضة)",
+                    "750": "750 سنة (العصور الوسطى المتأخرة/العصر الذهبي الإسلامي)",
+                    "1000": "1000 سنة (العصور الوسطى المبكرة)",
+                    "1500": "1500 سنة (سقوط الإمبراطورية الرومانية)",
+                    "2000": "2000 سنة (العصر الروماني/الميلادي)",
+                    "3000": "3000 سنة (العصر الحديدي)",
+                    "5000": "5000 سنة (العصر البرونزي)",
+                    "7000": "7000 سنة (العصر النحاسي/الزراعة المبكرة)",
+                    "10500": "10500 سنة (العصر الحجري الحديث)",
+                    "30000": "30000 سنة (العصر الحجري القديم الأعلى)",
+                    "150000": "150000 سنة (العصر الحجري القديم الأوسط)",
+                    "300000": "300000 سنة (العصر الحجري القديم الأدنى)",
+                    "2500000": "2,500,000 سنة (بداية العصر الحجري القديم)"
+                }
+            },
+            en: {
+                title: "Discover the Era You Would Have Lived In!",
+                firstNameLabel: "Enter your first name",
+                birthdateLabel: "Enter your birthdate",
+                yearsBackLabel: "Choose years to go back",
+                calculate: "Calculate Era",
+                save: "Save Result",
+                share: "Share on X",
+                era: "Era",
+                description: "Description",
+                figures: "Notable Figures",
+                events: "Key Events",
+                yourBirthdate: "Your Hypothetical Birthdate",
+                whatIf: "What if you were",
+                quizTitle: "Who Would You Be in This Era?",
+                quizSubmit: "Submit Answers",
+                invalidDate: "The birthdate is invalid. Please enter a valid date.",
+                noBirthdate: "Please enter your birthdate first.",
+                unknownEra: "Unknown Era",
+                unknownEraDescription: "Insufficient information about this period.",
+                year: "Year",
+                now: "Now",
+                century: "Century",
+                bce: "BCE",
+                loading: "Processing...",
+                saved: "Result saved!",
+                saveError: "An error occurred while saving.",
+                shareSuccess: "Shared on X!",
+                shareError: "An error occurred while sharing.",
+                mapTitle: "Locations of Historical Events",
+                ageInEra: "Your Age in This Era",
+                quizResult: "Your Role in the Era",
+                quizAnswerAll: "Please answer all questions.",
+                howNameWritten: "How your name would be written",
+                nameInEra: "Your name in this era",
+                nameFormat: "Your name '{name}' would be written in {format} and might be known as '{eraName}'."
+,
+                options: {
+                    "0": "0 years (Now)",
+                    "70": "70 years (Late 20th Century)",
+                    "150": "150 years (Victorian Era/Industrial Revolution)",
+                    "300": "300 years (Age of Enlightenment)",
+                    "500": "500 years (Renaissance Era)",
+                    "750": "750 years (Late Middle Ages/Islamic Golden Age)",
+                    "1000": "1000 years (Early Middle Ages)",
+                    "1500": "1500 years (Fall of Roman Empire)",
+                    "2000": "2000 years (Roman/Common Era)",
+                    "3000": "3000 years (Iron Age)",
+                    "5000": "5000 years (Bronze Age)",
+                    "7000": "7000 years (Chalcolithic/Early Agriculture)",
+                    "10500": "10500 years (Neolithic Era)",
+                    "30000": "30000 years (Upper Paleolithic)",
+                    "150000": "150000 years (Middle Paleolithic)",
+                    "300000": "300000 years (Lower Paleolithic)",
+                    "2500000": "2,500,000 years (Beginning of Paleolithic)"
+                }
+            }
+        };
+
+        const eras = {
+            0: {
+                ar: {
+                    name: "القرن الحادي والعشرون (العصر الحالي)",
+                    description: "عصر الرقمنة، الذكاء الاصطناعي، وتحديات المناخ العالمية.",
+                    figures: [
+                        { name: "إيلون ماسك", role: "رائد أعمال", image: "https://upload.wikimedia.org/wikipedia/commons/3/34/Elon_Musk_Royal_Society_%28cropped%29.jpg" },
+                        { name: "غريتا ثونبرغ", role: "ناشطة بيئية", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Greta_Thunberg_2019.jpg/800px-Greta_Thunberg_2019.jpg" }
+                    ],
+                    events: [
+                        { year: 2007, event: "إطلاق آيفون", location: [37.7749, -122.4194] },
+                        { year: 2020, event: "جائحة كوفيد-19", location: [30.5852, 114.3055] },
+                        { year: 2024, event: "التقدم في الذكاء الاصطناعي", location: [37.7749, -122.4194] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2024/03/25/205614-926108750_large.mp4",
+                    name_format: { text: "الأبجدية اللاتينية/العربية الحديثة", era_name: "مبتكر البيانات" }
+                },
+                en: {
+                    name: "21st Century (Current Era)",
+                    description: "An age of digitalization, artificial intelligence, and global climate challenges.",
+                    figures: [
+                        { name: "Elon Musk", role: "Entrepreneur", image: "https://upload.wikimedia.org/wikipedia/commons/3/34/Elon_Musk_Royal_Society_%28cropped%29.jpg" },
+                        { name: "Greta Thunberg", role: "Environmental Activist", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Greta_Thunberg_2019.jpg/800px-Greta_Thunberg_2019.jpg" }
+                    ],
+                    events: [
+                        { year: 2007, event: "Launch of the iPhone", location: [37.7749, -122.4194] },
+                        { year: 2020, event: "COVID-19 Pandemic", location: [30.5852, 114.3055] },
+                        { year: 2024, event: "Advancements in AI", location: [37.7749, -122.4194] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2024/03/25/205614-926108750_large.mp4",
+                    name_format: { text: "Modern Latin/Arabic alphabet", era_name: "Data Innovator" }
+                }
+            },
+            70: {
+                ar: {
+                    name: "القرن العشرون المتأخر",
+                    description: "فترة ما بعد الحرب العالمية الثانية، مع ثورة التكنولوجيا وظهور الإنترنت.",
+                    figures: [
+                        { name: "ستيف جوبز", role: "مؤسس آبل", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Steve_Jobs_at_WWDC_2010.jpg/800px-Steve_Jobs_at_WWDC_2010.jpg" },
+                        { name: "نيلسون مانديلا", role: "زعيم سياسي", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Nelson_Mandela_1994.jpg/800px-Nelson_Mandela_1994.jpg" }
+                    ],
+                    events: [
+                        { year: 1945, event: "نهاية الحرب العالمية الثانية", location: [52.5200, 13.4050] },
+                        { year: 1969, event: "هبوط أبولو 11 على القمر", location: [28.5721, -80.6480] },
+                        { year: 1991, event: "إطلاق الشبكة العنكبوتية", location: [46.2044, 6.1432] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2023/11/15/189672-885932249_large.mp4",
+                    name_format: { text: "الحروف اللاتينية/العربية", era_name: "المفكر الرقمي" }
+                },
+                en: {
+                    name: "Late 20th Century",
+                    description: "Post-WWII era with technological revolutions and the rise of the internet.",
+                    figures: [
+                        { name: "Steve Jobs", role: "Apple Founder", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Steve_Jobs_at_WWDC_2010.jpg/800px-Steve_Jobs_at_WWDC_2010.jpg" },
+                        { name: "Nelson Mandela", role: "Political Leader", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Nelson_Mandela_1994.jpg/800px-Nelson_Mandela_1994.jpg" }
+                    ],
+                    events: [
+                        { year: 1945, event: "End of World War II", location: [52.5200, 13.4050] },
+                        { year: 1969, event: "Apollo 11 Moon Landing", location: [28.5721, -80.6480] },
+                        { year: 1991, event: "Launch of the World Wide Web", location: [46.2044, 6.1432] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2023/11/15/189672-885932249_large.mp4",
+                    name_format: { text: "Latin/Arabic alphabets", era_name: "Digital Thinker" }
+                }
+            },
+            150: {
+                ar: {
+                    name: "العصر الفيكتوري/الثورة الصناعية",
+                    description: "أوج الثورة الصناعية والإمبراطورية البريطانية، مع تقدم علمي كبير.",
+                    figures: [
+                        { name: "الملكة فيكتوريا", role: "ملكة المملكة المتحدة", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Queen_Victoria_by_Bassano.jpg/800px-Queen_Victoria_by_Bassano.jpg" },
+                        { name: "توماس إديسون", role: "مخترع", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Thomas_Edison2.jpg/800px-Thomas_Edison2.jpg" }
+                    ],
+                    events: [
+                        { year: 1859, event: "نشر 'أصل الأنواع' لداروين", location: [51.5074, -0.1278] },
+                        { year: 1876, event: "اختراع الهاتف", location: [42.3601, -71.0589] },
+                        { year: 1886, event: "اختراع السيارة", location: [48.7758, 9.1829] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الحروف اللاتينية المزخرفة", era_name: "الصانع الكبير" }
+                },
+                en: {
+                    name: "Victorian Era/Industrial Revolution",
+                    description: "Peak of the Industrial Revolution and British Empire with major scientific advancements.",
+                    figures: [
+                        { name: "Queen Victoria", role: "Queen of the United Kingdom", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Queen_Victoria_by_Bassano.jpg/800px-Queen_Victoria_by_Bassano.jpg" },
+                        { name: "Thomas Edison", role: "Inventor", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Thomas_Edison2.jpg/800px-Thomas_Edison2.jpg" }
+                    ],
+                    events: [
+                        { year: 1859, event: "Darwin's 'On the Origin of Species' published", location: [51.5074, -0.1278] },
+                        { year: 1876, event: "Invention of the telephone", location: [42.3601, -71.0589] },
+                        { year: 1886, event: "Invention of the automobile", location: [48.7758, 9.1829] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Ornate Latin Script", era_name: "The Grand Maker" }
+                }
+            },
+            300: {
+                ar: {
+                    name: "عصر التنوير",
+                    description: "عصر الأفكار الجديدة، الفلسفة، والثورات السياسية في أوروبا وأمريكا.",
+                    figures: [
+                        { name: "فولتير", role: "فيلسوف وكاتب", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Portrait_of_Voltaire_by_Maurice_Quentin_de_La_Tour.jpg/800px-Portrait_of_Voltaire_by_Maurice_Quentin_de_La_Tour.jpg" },
+                        { name: "بنجامين فرانكلين", role: "أحد الآباء المؤسسين", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Benjamin_Franklin_by_Joseph_Duplessis_1778.jpg/800px-Benjamin_Franklin_by_Joseph_Duplessis_1778.jpg" }
+                    ],
+                    events: [
+                        { year: 1776, event: "إعلان استقلال الولايات المتحدة", location: [39.9526, -75.1652] },
+                        { year: 1789, event: "الثورة الفرنسية", location: [48.8566, 2.3522] },
+                        { year: 1796, event: "اختراع اللقاح", location: [51.7520, -1.2577] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2023/11/15/189672-885932249_large.mp4",
+                    name_format: { text: "الحروف اللاتينية الأنيقة", era_name: "نصير العقل" }
+                },
+                en: {
+                    name: "Age of Enlightenment",
+                    description: "An era of new ideas, philosophy, and political revolutions in Europe and America.",
+                    figures: [
+                        { name: "Voltaire", role: "Philosopher and Writer", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Portrait_of_Voltaire_by_Maurice_Quentin_de_La_Tour.jpg/800px-Portrait_of_Voltaire_by_Maurice_Quentin_de_La_Tour.jpg" },
+                        { name: "Benjamin Franklin", role: "Founding Father", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Benjamin_Franklin_by_Joseph_Duplessis_1778.jpg/800px-Benjamin_Franklin_by_Joseph_Duplessis_1778.jpg" }
+                    ],
+                    events: [
+                        { year: 1776, event: "Declaration of Independence", location: [39.9526, -75.1652] },
+                        { year: 1789, event: "French Revolution", location: [48.8566, 2.3522] },
+                        { year: 1796, event: "Invention of the vaccine", location: [51.7520, -1.2577] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2023/11/15/189672-885932249_large.mp4",
+                    name_format: { text: "Elegant Latin Script", era_name: "Champion of Reason" }
+                }
+            },
+            500: {
+                ar: {
+                    name: "عصر النهضة",
+                    description: "فترة تجدد الفن والعلوم والاستكشافات الكبرى في أوروبا.",
+                    figures: [
+                        { name: "ليوناردو دافنشي", role: "فنان وعالم", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Francesco_Melzi_-_Portrait_of_Leonardo_da_Vinci_-_Google_Art_Project.jpg/800px-Francesco_Melzi_-_Portrait_of_Leonardo_da_Vinci_-_Google_Art_Project.jpg" },
+                        { name: "كريستوفر كولومبوس", role: "مستكشف", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Portrait_of_a_man%2C_said_to_be_Christopher_Columbus.jpg/800px-Portrait_of_a_man%2C_said_to_be_Christopher_Columbus.jpg" }
+                    ],
+                    events: [
+                        { year: 1492, event: "رحلة كولومبوس إلى الأمريكتين", location: [37.3891, -5.9845] },
+                        { year: 1517, event: "الإصلاح البروتستانتي", location: [51.2093, 12.2801] },
+                        { year: 1543, event: "نشر كتاب كوبرنيكوس", location: [53.1235, 18.0084] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الحروف اللاتينية المكتوبة باليد", era_name: "روح الإبداع" }
+                },
+                en: {
+                    name: "Renaissance Era",
+                    description: "A period of renewed art, science, and major explorations in Europe.",
+                    figures: [
+                        { name: "Leonardo da Vinci", role: "Artist and Scientist", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Francesco_Melzi_-_Portrait_of_Leonardo_da_Vinci_-_Google_Art_Project.jpg/800px-Francesco_Melzi_-_Portrait_of_Leonardo_da_Vinci_-_Google_Art_Project.jpg" },
+                        { name: "Christopher Columbus", role: "Explorer", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Portrait_of_a_man%2C_said_to_be_Christopher_Columbus.jpg/800px-Portrait_of_a_man%2C_said_to_be_Christopher_Columbus.jpg" }
+                    ],
+                    events: [
+                        { year: 1492, event: "Columbus's voyage to the Americas", location: [37.3891, -5.9845] },
+                        { year: 1517, event: "Protestant Reformation", location: [51.2093, 12.2801] },
+                        { year: 1543, event: "Copernicus's heliocentrism book", location: [53.1235, 18.0084] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Handwritten Latin Script", era_name: "Spirit of Innovation" }
+                }
+            },
+            750: {
+                ar: {
+                    name: "العصور الوسطى المتأخرة/العصر الذهبي الإسلامي",
+                    description: "فترة ازدهار علمي وفني في العالم الإسلامي وبداية التغيرات في أوروبا.",
+                    figures: [
+                        { name: "ابن خلدون", role: "مؤرخ وفيلسوف", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Ibn_Khaldun.jpg/800px-Ibn_Khaldun.jpg" },
+                        { name: "دانتي أليغييري", role: "شاعر إيطالي", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Dante_Alighieri_from_Project_Gutenberg.jpg/800px-Dante_Alighieri_from_Project_Gutenberg.jpg" }
+                    ],
+                    events: [
+                        { year: 1258, event: "سقوط بغداد", location: [33.3152, 44.3661] },
+                        { year: 1347, event: "الموت الأسود", location: [45.4408, 12.3155] },
+                        { year: 1453, event: "فتح القسطنطينية", location: [41.0082, 28.9784] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الخط العربي المذهب / اللاتينية المخطوطة", era_name: "الحكيم الماهر" }
+                },
+                en: {
+                    name: "Late Middle Ages/Islamic Golden Age",
+                    description: "A period of scientific and artistic flourishing in the Islamic world and changes in Europe.",
+                    figures: [
+                        { name: "Ibn Khaldun", role: "Historian and Philosopher", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Ibn_Khaldun.jpg/800px-Ibn_Khaldun.jpg" },
+                        { name: "Dante Alighieri", role: "Italian Poet", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Dante_Alighieri_from_Project_Gutenberg.jpg/800px-Dante_Alighieri_from_Project_Gutenberg.jpg" }
+                    ],
+                    events: [
+                        { year: 1258, event: "Fall of Baghdad", location: [33.3152, 44.3661] },
+                        { year: 1347, event: "The Black Death", location: [45.4408, 12.3155] },
+                        { year: 1453, event: "Ottoman conquest of Constantinople", location: [41.0082, 28.9784] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Ornate Arabic Calligraphy / Medieval Latin Script", era_name: "The Master Scholar" }
+                }
+            },
+            1000: {
+                ar: {
+                    name: "العصور الوسطى المبكرة",
+                    description: "ما بعد سقوط الإمبراطورية الرومانية، مع صعود البيزنطيين والعباسيين.",
+                    figures: [
+                        { name: "هارون الرشيد", role: "خليفة عباسي", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Harun_al-Rashid_seated.jpg/800px-Harun_al-Rashid_seated.jpg" },
+                        { name: "جستنيان الأول", role: "إمبراطور بيزنطي", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Justinian_I_mosaic_cropped.jpg/800px-Justinian_I_mosaic_cropped.jpg" }
+                    ],
+                    events: [
+                        { year: 622, event: "الهجرة النبوية", location: [21.3891, 39.8579] },
+                        { year: 800, event: "تتويج شارلمان", location: [50.1109, 8.6821] },
+                        { year: 962, event: "الإمبراطورية الرومانية المقدسة", location: [48.1372, 11.5755] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "اللاتينية القروسطية / الخط الكوفي", era_name: "الحاكم القوي" }
+                },
+                en: {
+                    name: "Early Middle Ages",
+                    description: "After the fall of Rome, with the rise of Byzantines and Abbasids.",
+                    figures: [
+                        { name: "Harun al-Rashid", role: "Abbasid Caliph", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Harun_al-Rashid_seated.jpg/800px-Harun_al-Rashid_seated.jpg" },
+                        { name: "Justinian I", role: "Byzantine Emperor", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Justinian_I_mosaic_cropped.jpg/800px-Justinian_I_mosaic_cropped.jpg" }
+                    ],
+                    events: [
+                        { year: 622, event: "Hijra of Prophet Muhammad", location: [21.3891, 39.8579] },
+                        { year: 800, event: "Charlemagne Crowned", location: [50.1109, 8.6821] },
+                        { year: 962, event: "Holy Roman Empire founded", location: [48.1372, 11.5755] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Medieval Latin / Kufic script", era_name: "The Mighty Ruler" }
+                }
+            },
+            1500: {
+                ar: {
+                    name: "سقوط الإمبراطورية الرومانية",
+                    description: "فترة اضطراب وسقوط الإمبراطورية الرومانية الغربية.",
+                    figures: [
+                        { name: "قسطنطين الأول", role: "إمبراطور روماني", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Head_of_Constantine_I_the_Great_from_the_Basilica_of_Maxentius_and_Constantine%2C_Rome_-_02.jpg/800px-Head_of_Constantine_I_the_Great_from_the_Basilica_of_Maxentius_and_Constantine%2C_Rome_-_02.jpg" },
+                        { name: "أتيلا الهوني", role: "زعيم الهون", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Attila_by_Mor_Than_1866.jpg/800px-Attila_by_Mor_Than_1866.jpg" }
+                    ],
+                    events: [
+                        { year: 313, event: "مرسوم ميلانو", location: [45.4642, 9.1900] },
+                        { year: 410, event: "نهب روما", location: [41.9028, 12.4964] },
+                        { year: 476, event: "سقوط روما الغربية", location: [41.9028, 12.4964] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "اللاتينية المتأخرة / الرونية", era_name: "المحارب القديم" }
+                },
+                en: {
+                    name: "Fall of Roman Empire",
+                    description: "A period of turmoil and the fall of the Western Roman Empire.",
+                    figures: [
+                        { name: "Constantine I", role: "Roman Emperor", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Head_of_Constantine_I_the_Great_from_the_Basilica_of_Maxentius_and_Constantine%2C_Rome_-_02.jpg/800px-Head_of_Constantine_I_the_Great_from_the_Basilica_of_Maxentius_and_Constantine%2C_Rome_-_02.jpg" },
+                        { name: "Attila the Hun", role: "Leader of the Huns", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Attila_by_Mor_Than_1866.jpg/800px-Attila_by_Mor_Than_1866.jpg" }
+                    ],
+                    events: [
+                        { year: 313, event: "Edict of Milan", location: [45.4642, 9.1900] },
+                        { year: 410, event: "Sack of Rome", location: [41.9028, 12.4964] },
+                        { year: 476, event: "Fall of Western Rome", location: [41.9028, 12.4964] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Late Latin / Runic script", era_name: "Ancient Warrior" }
+                }
+            },
+            2000: {
+                ar: {
+                    name: "العصر الروماني/الميلادي",
+                    description: "ذروة الإمبراطورية الرومانية وانتشار المسيحية.",
+                    figures: [
+                        { name: "أغسطس", role: "إمبراطور روماني", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Augustus_gemma_augustea.jpg/800px-Augustus_gemma_augustea.jpg" },
+                        { name: "كليوباترا السابعة", role: "ملكة مصر", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Cleopatra_VII_Altemps.jpg/800px-Cleopatra_VII_Altemps.jpg" }
+                    ],
+                    events: [
+                        { year: -27, event: "تأسيس الإمبراطورية الرومانية", location: [41.9028, 12.4964] },
+                        { year: 70, event: "تدمير الهيكل الثاني", location: [31.7683, 35.2137] },
+                        { year: 117, event: "أقصى اتساع للإمبراطورية", location: [41.9028, 12.4964] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "اللاتينية الكلاسيكية / الهيروغليفية", era_name: "المواطن الروماني" }
+                },
+                en: {
+                    name: "Roman Era",
+                    description: "Peak of the Roman Empire and spread of Christianity.",
+                    figures: [
+                        { name: "Augustus", role: "Roman Emperor", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Augustus_gemma_augustea.jpg/800px-Augustus_gemma_augustea.jpg" },
+                        { name: "Cleopatra VII", role: "Queen of Egypt", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Cleopatra_VII_Altemps.jpg/800px-Cleopatra_VII_Altemps.jpg" }
+                    ],
+                    events: [
+                        { year: -27, event: "Founding of the Roman Empire", location: [41.9028, 12.4964] },
+                        { year: 70, event: "Destruction of the Second Temple", location: [31.7683, 35.2137] },
+                        { year: 117, event: "Roman Empire at its greatest extent", location: [41.9028, 12.4964] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Classical Latin / Hieroglyphics", era_name: "Roman Citizen" }
+                }
+            },
+            3000: {
+                ar: {
+                    name: "العصر الحديدي",
+                    description: "تطور أدوات الحديد وظهور ممالك جديدة.",
+                    figures: [
+                        { name: "هوميروس", role: "شاعر إغريقي", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Homer_Louvre.jpg/800px-Homer_Louvre.jpg" },
+                        { name: "داود", role: "ملك إسرائيل", image: "https://via.placeholder.com/200/CCCCCC/FFFFFF?text=King+David" }
+                    ],
+                    events: [
+                        { year: -1200, event: "انهيار العصر البرونزي", location: [36.2021, 36.1603] },
+                        { year: -800, event: "صعود دول المدن اليونانية", location: [37.9838, 23.7275] },
+                        { year: -509, event: "تأسيس الجمهورية الرومانية", location: [41.9028, 12.4964] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الخطوط الفينيقية/الإغريقية البدائية", era_name: "سيد الحديد" }
+                },
+                en: {
+                    name: "Iron Age",
+                    description: "Development of iron tools and the rise of new kingdoms.",
+                    figures: [
+                        { name: "Homer", role: "Greek Poet", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Homer_Louvre.jpg/800px-Homer_Louvre.jpg" },
+                        { name: "David", role: "King of Israel", image: "https://via.placeholder.com/200/CCCCCC/FFFFFF?text=King+David" }
+                    ],
+                    events: [
+                        { year: -1200, event: "Bronze Age Collapse", location: [36.2161, 36.1603] },
+                        { year: -800, event: "Rise of Greek City-States", location: [37.9838, 23.7275] },
+                        { year: -509, event: "Founding of the Roman Republic", location: [41.9028, 12.4964] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Phoenician/Early Greek Scripts", era_name: "Iron Master" }
+                }
+            },
+            5000: {
+                ar: {
+                    name: "العصر البرونزي",
+                    description: "ظهور الحضارات الكبرى في مصر وبلاد الرافدين مع الكتابة.",
+                    figures: [
+                        { name: "نارمر", role: "مؤسس الأسرة الأولى", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Narmer_Palette_reverse.jpg/800px-Narmer_Palette_reverse.jpg" },
+                        { name: "حمورابي", role: "ملك بابل", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Hammurabi_from_the_Stele_of_Hammurabi.jpg/800px-Hammurabi_from_the_Stele_of_Hammurabi.jpg" }
+                    ],
+                    events: [
+                        { year: -3100, event: "توحيد مصر", location: [29.9792, 31.1342] },
+                        { year: -2600, event: "بناء هرم خوفو", location: [29.9792, 31.1342] },
+                        { year: -1754, event: "قانون حمورابي", location: [33.3152, 44.3661] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الكتابة المسمارية / الهيروغليفية المصرية", era_name: "ناظم القوانين" }
+                },
+                en: {
+                    name: "Bronze Age",
+                    description: "Rise of major civilizations in Egypt and Mesopotamia with writing.",
+                    figures: [
+                        { name: "Narmer", role: "Founder of First Dynasty", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Narmer_Palette_reverse.jpg/800px-Narmer_Palette_reverse.jpg" },
+                        { name: "Hammurabi", role: "King of Babylon", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Hammurabi_from_the_Stele_of_Hammurabi.jpg/800px-Hammurabi_from_the_Stele_of_Hammurabi.jpg" }
+                    ],
+                    events: [
+                        { year: -3100, event: "Unification of Egypt", location: [29.9792, 31.1342] },
+                        { year: -2600, event: "Construction of Khufu's Pyramid", location: [29.9792, 31.1342] },
+                        { year: -1754, event: "Code of Hammurabi", location: [33.3152, 44.3661] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Cuneiform / Egyptian Hieroglyphs", era_name: "The Law Giver" }
+                }
+            },
+            7000: {
+                ar: {
+                    name: "العصر النحاسي/الزراعة المبكرة",
+                    description: "انتقال إلى الزراعة واستخدام النحاس.",
+                    figures: [],
+                    events: [
+                        { year: -5000, event: "تطور الزراعة", location: [33.3152, 44.3661] },
+                        { year: -4500, event: "استخدام النحاس", location: [44.7920, 20.4489] },
+                        { year: -3500, event: "ظهور مدن أولية", location: [30.4222, 48.1667] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الرموز التصويرية البدائية", era_name: "راعي الأرض" }
+                },
+                en: {
+                    name: "Chalcolithic/Early Agriculture",
+                    description: "Transition to agriculture and use of copper.",
+                    figures: [],
+                    events: [
+                        { year: -5000, event: "Development of agriculture", location: [33.3152, 44.3661] },
+                        { year: -4500, event: "Use of copper", location: [44.7920, 20.4489] },
+                        { year: -3500, event: "Emergence of proto-cities", location: [30.4222, 48.1667] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Proto-pictograms", era_name: "Earth Tender" }
+                }
+            },
+            10500: {
+                ar: {
+                    name: "العصر الحجري الحديث",
+                    description: "بداية الزراعة وتكوّن المستوطنات الدائمة.",
+                    figures: [],
+                    events: [
+                        { year: -10000, event: "الثورة النيوليتية", location: [31.7683, 35.2137] },
+                        { year: -9000, event: "تأسيس أريحا", location: [31.8560, 35.4599] },
+                        { year: -6000, event: "انتشار الزراعة إلى أوروبا", location: [40.4168, -3.7038] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الرموز البدائية / النقوش الصخرية", era_name: "مؤسس القرية" }
+                },
+                en: {
+                    name: "Neolithic Era",
+                    description: "Beginning of agriculture and permanent settlements.",
+                    figures: [],
+                    events: [
+                        { year: -10000, event: "Neolithic Revolution", location: [31.7683, 35.2137] },
+                        { year: -9000, event: "Founding of Jericho", location: [31.8560, 35.4599] },
+                        { year: -6000, event: "Spread of agriculture to Europe", location: [40.4168, -3.7038] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Early symbols / Rock carvings", era_name: "Village Founder" }
+                }
+            },
+            30000: {
+                ar: {
+                    name: "العصر الحجري القديم الأعلى",
+                    description: "صيادون جامعون مع فنون الكهوف وأدوات متقدمة.",
+                    figures: [],
+                    events: [
+                        { year: -35000, event: "فنون الكهوف", location: [44.8040, 4.3907] },
+                        { year: -25000, event: "أدوات حجرية متقدمة", location: [43.6158, 1.4442] },
+                        { year: -20000, event: "هجرة إلى الأمريكتين", location: [64.1355, -21.8954] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الرسوم الصخرية / العلامات المحفورة", era_name: "فنان الكهف" }
+                },
+                en: {
+                    name: "Upper Paleolithic",
+                    description: "Hunter-gatherers with cave art and advanced tools.",
+                    figures: [],
+                    events: [
+                        { year: -35000, event: "Cave art emergence", location: [44.8040, 4.3907] },
+                        { year: -25000, event: "Advanced stone tools", location: [43.6158, 1.4442] },
+                        { year: -20000, event: "Migration to the Americas", location: [64.1355, -21.8954] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Rock paintings / Engraved signs", era_name: "Cave Artist" }
+                }
+            },
+            150000: {
+                ar: {
+                    name: "العصر الحجري القديم الأوسط",
+                    description: "ظهور الإنسان العاقل مع أدوات حجرية بدائية.",
+                    figures: [],
+                    events: [
+                        { year: -300000, event: "ظهور الإنسان العاقل", location: [-26.2041, 28.0473] },
+                        { year: -100000, event: "هجرة خارج إفريقيا", location: [15.4589, 44.4808] },
+                        { year: -60000, event: "سلوك رمزي", location: [-34.9285, 138.6007] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الأدوات الحجرية المشذبة", era_name: "صانع الأدوات القديم" }
+                },
+                en: {
+                    name: "Middle Paleolithic",
+                    description: "Emergence of Homo sapiens with primitive stone tools.",
+                    figures: [],
+                    events: [
+                        { year: -300000, event: "Emergence of Homo sapiens", location: [-26.2041, 28.0473] },
+                        { year: -100000, event: "Migration out of Africa", location: [15.4589, 44.4808] },
+                        { year: -60000, event: "Symbolic behavior", location: [-34.9285, 138.6007] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Flint tools", era_name: "Ancient Toolmaker" }
+                }
+            },
+            300000: {
+                ar: {
+                    name: "العصر الحجري القديم الأدنى",
+                    description: "ظهور الإنسان المنتصب واكتشاف النار.",
+                    figures: [],
+                    events: [
+                        { year: -2500000, event: "أول أدوات حجرية", location: [-6.3690, 34.8888] },
+                        { year: -1800000, event: "ظهور الإنسان المنتصب", location: [41.7151, 44.8271] },
+                        { year: -500000, event: "استخدام النار", location: [39.9042, 116.4074] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الأدوات الحجرية الخام", era_name: "مكتشف النار" }
+                },
+                en: {
+                    name: "Lower Paleolithic",
+                    description: "Emergence of Homo erectus and discovery of fire.",
+                    figures: [],
+                    events: [
+                        { year: -2500000, event: "First stone tools", location: [-6.3690, 34.8888] },
+                        { year: -1800000, event: "Emergence of Homo erectus", location: [41.7151, 44.8271] },
+                        { year: -500000, event: "Use of fire", location: [39.9042, 116.4074] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Crude stone tools", era_name: "Fire Discoverer" }
+                }
+            },
+            2500000: {
+                ar: {
+                    name: "بداية العصر الحجري القديم",
+                    description: "ظهور أشباه البشر وأولى الأدوات الحجرية.",
+                    figures: [],
+                    events: [
+                        { year: -3000000, event: "ظهور الأسترالوبيثيكوس", location: [-9.1450, 40.4897] },
+                        { year: -2500000, event: "أول أدوات حجرية", location: [-6.3690, 34.8888] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "الأحجار المشطوفة", era_name: "جامع البذور" }
+                },
+                en: {
+                    name: "Early Paleolithic",
+                    description: "Emergence of hominids and the first stone tools.",
+                    figures: [],
+                    events: [
+                        { year: -3000000, event: "Emergence of Australopithecus", location: [-9.1450, 40.4897] },
+                        { year: -2500000, event: "First stone tools", location: [-6.3690, 34.8888] }
+                    ],
+                    video: "https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4",
+                    name_format: { text: "Chopped pebbles", era_name: "Seed Forager" }
+                }
+            }
+        };
+
+        const quizRoles = {
+            0: { ar: ["مبرمج", "ناشط بيئي", "رائد أعمال"], en: ["Programmer", "Environmental Activist", "Entrepreneur"] },
+            70: { ar: ["مهندس", "عالم", "ناشط سياسي"], en: ["Engineer", "Scientist", "Political Activist"] },
+            150: { ar: ["مخترع", "عامل مصنع", "تاجر"], en: ["Inventor", "Factory Worker", "Merchant"] },
+            300: { ar: ["فيلسوف", "سياسي", "كاتب"], en: ["Philosopher", "Politician", "Writer"] },
+            500: { ar: ["فنان", "مستكشف", "عالم"], en: ["Artist", "Explorer", "Scholar"] },
+            750: { ar: ["مؤرخ", "شاعر", "تاجر"], en: ["Historian", "Poet", "Merchant"] },
+            1000: { ar: ["فارس", "تاجر", "راهب"], en: ["Knight", "Trader", "Monk"] },
+            1500: { ar: ["محارب", "فلاح", "حرفي"], en: ["Warrior", "Farmer", "Craftsman"] },
+            2000: { ar: ["جندي روماني", "تاجر", "كاتب"], en: ["Roman Soldier", "Merchant", "Scribe"] },
+            3000: { ar: ["محارب", "حرفي", "راعي"], en: ["Warrior", "Craftsman", "Herdsman"] },
+            5000: { ar: ["كاهن", "حرفي", "تاجر"], en: ["Priest", "Craftsman", "Trader"] },
+            7000: { ar: ["مزارع", "حرفي", "صياد"], en: ["Farmer", "Craftsman", "Hunter"] },
+            10500: { ar: ["مزارع", "صياد", "باني"], en: ["Farmer", "Hunter", "Builder"] },
+            30000: { ar: ["صياد", "جمع ثمار", "رسام كهوف"], en: ["Hunter", "Gatherer", "Cave Painter"] },
+            150000: { ar: ["صياد", "جمعي", "صانع أدوات"], en: ["Hunter", "Gatherer", "Toolmaker"] },
+            300000: { ar: ["صياد", "جمعي", "صانع أدوات"], en: ["Hunter", "Gatherer", "Toolmaker"] },
+            2500000: { ar: ["صياد", "جمعي", "صانع أدوات"], en: ["Hunter", "Gatherer", "Toolmaker"] }
+        };
+
+        let timelineChartInstance = null;
+        let mapInstance = null;
+        let currentYearsBack = 0; // Initialize currentYearsBack
+
+        async function fetchEraDescription(year, lang) {
+            try {
+                // This is a placeholder for actual xAI API integration.
+                // For now, it fetches a pre-defined description.
+                await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call delay
+                const eraKey = findClosestEraKey(Math.abs(year));
+                const baseDescription = eras[eraKey]?.[lang]?.description || translations[lang].unknownEraDescription;
+                return {
+                    description: `كنت ستعيش في ${eras[eraKey]?.[lang]?.name || translations[lang].unknownEra}. ${baseDescription} تخيل حياة مليئة بالتحديات والفرص في هذا العصر!`
+                };
+            } catch (error) {
+                console.error('Error fetching AI description:', error);
+                return { description: translations[lang].unknownEraDescription };
+            }
+        }
+
+        function findClosestEraKey(year) {
+            const eraKeys = Object.keys(eras).map(Number);
+            return eraKeys.reduce((prev, curr) => Math.abs(curr - year) < Math.abs(prev - year) ? curr : prev);
+        }
+
+        function updateBackgroundVideo(videoUrl) {
+            const video = document.getElementById('backgroundVideo');
+            if (videoUrl) {
+                video.src = videoUrl;
+                video.play().catch(error => console.error('Video playback error:', error));
+            } else {
+                // Fallback to placeholder image if no video URL is provided or video fails
+                video.src = ""; // Clear current video
+                document.body.style.backgroundImage = 'url("https://images.unsplash.com/photo-1505664194779-8beaceb93744?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80")';
+                document.body.style.backgroundSize = 'cover';
+                document.body.style.backgroundAttachment = 'fixed';
+            }
+        }
+
+        function changeLanguage() {
+            try {
+                const lang = document.getElementById('language').value;
+                localStorage.setItem('preferredLanguage', lang);
+                document.querySelector('h1').textContent = translations[lang].title;
+                document.querySelector('label[for="firstName"]').textContent = translations[lang].firstNameLabel;
+                document.querySelector('label[for="birthdate"]').textContent = translations[lang].birthdateLabel;
+                document.querySelector('label[for="yearsBack"]').textContent = translations[lang].yearsBackLabel;
+                // Using specific IDs for buttons for robustness
+                document.getElementById('calculateButton').textContent = translations[lang].calculate;
+                document.getElementById('saveButton').textContent = translations[lang].save;
+                document.getElementById('shareButton').innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg> ${translations[lang].share}`;
+
+                const yearsBackSelect = document.getElementById('yearsBack');
+                Array.from(yearsBackSelect.options).forEach(option => {
+                    option.textContent = translations[lang].options[option.value] || option.textContent;
+                });
+                calculateEra(); // Recalculate to update content with new language
+            } catch (error) {
+                console.error('خطأ في تغيير اللغة:', error);
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('themeToggle').innerHTML = isDark
+                ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>'
+                : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>';
+            // Re-render chart to apply new theme colors if active
+            if (timelineChartInstance) {
+                timelineChartInstance.destroy();
+                const ctx = document.getElementById('timelineChart').getContext('2d');
+                createTimelineChart(ctx, timelineChartInstance.data.datasets[0].data, timelineChartInstance.data.datasets[1].data[0].x, document.getElementById('language').value);
+            }
+        }
+
+        function generateQuiz(yearsBack, lang) {
+            const quizContainer = document.getElementById('quizQuestions');
+            quizContainer.innerHTML = '';
+            const questions = [
+                {
+                    question: lang === 'ar' ? "ما الذي تفضل القيام به؟" : "What do you prefer to do?",
+                    options: lang === 'ar' ? ["إبداع", "قيادة", "استكشاف"] : ["Create", "Lead", "Explore"]
+                },
+                {
+                    question: lang === 'ar' ? "كيف تحل المشكلات؟" : "How do you solve problems?",
+                    options: lang === 'ar' ? ["التفكير العقلي", "العمل الجماعي", "التجربة"] : ["Logic", "Collaboration", "Trial"]
+                }
+            ];
+            questions.forEach((q, i) => {
+                const div = document.createElement('div');
+                div.className = 'mb-4';
+                div.innerHTML = `
+                    <p class="font-medium text-gray-700 dark:text-gray-300">${sanitizeText(q.question)}</p>
+                    ${q.options.map((opt, idx) => `
+                        <label class="block mt-2 text-gray-700 dark:text-gray-300">
+                            <input type="radio" name="q${i}" value="${idx}" required class="mr-2">
+                            ${sanitizeText(opt)}
+                        </label>
+                    `).join('')}
+                `;
+                quizContainer.appendChild(div);
+            });
+            document.getElementById('quiz').classList.remove('hidden'); // Use classList.remove
+        }
+
+        function submitQuiz() {
+            const lang = document.getElementById('language').value;
+            const answers = Array.from(document.querySelectorAll('#quizQuestions input[type="radio"]:checked')).map(input => parseInt(input.value));
+            if (answers.length !== 2) {
+                document.getElementById('quizResult').innerHTML = `<p class="error-message">${translations[lang].quizAnswerAll}</p>`;
+                return;
+            }
+            const score = answers.reduce((sum, val) => sum + val, 0);
+            const roles = quizRoles[currentYearsBack]?.[lang] || quizRoles[Object.keys(quizRoles)[0]][lang]; // Fallback if currentYearsBack has no specific roles
+            const role = roles[Math.min(Math.floor(score / 2), roles.length - 1)]; // Ensure index is within bounds
+            document.getElementById('quizResult').innerHTML = `
+                <p class="text-lg font-semibold text-gray-800 dark:text-gray-200">${translations[lang].quizResult}: <span class="text-indigo-600 dark:text-indigo-400">${sanitizeText(role)}</span></p>
+                <p class="text-gray-600 dark:text-gray-400">${lang === 'ar' ? `بناءًا على إجاباتك، كنت ستكون ${sanitizeText(role)} في هذا العصر!` : `Based on your answers, you would have been a ${sanitizeText(role)} in this era!`}</p>
+            `;
+        }
+
+        function createTimelineChart(ctx, eventsData, hypotheticalYear, lang) {
+            let minYear = hypotheticalYear;
+            let maxYear = hypotheticalYear;
+            if (eventsData.length > 0) {
+                const eventYears = eventsData.map(d => d.x);
+                minYear = Math.min(minYear, ...eventYears);
+                maxYear = Math.max(maxYear, ...eventYears);
+            }
+            const padding = (maxYear - minYear) * 0.1;
+            minYear -= Math.abs(padding);
+            maxYear += Math.abs(padding);
+
+            timelineChartInstance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: translations[lang].events,
+                        data: eventsData,
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)', // indigo-600
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        borderWidth: 1,
+                        pointRadius: 8,
+                        pointHoverRadius: 12
+                    },
+                    { // Add point for hypothetical birthdate
+                        label: translations[lang].yourBirthdate,
+                        data: [{ x: hypotheticalYear, y: 0 }],
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)', // red-500
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 2,
+                        pointRadius: 12,
+                        pointHoverRadius: 15,
+                        pointStyle: 'star'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: translations[lang].year,
+                                color: document.body.classList.contains('dark-mode') ? '#e2e8f0' : '#374151'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value < 0 ? `${Math.abs(value)} ${translations[lang].bce}` : value;
+                                },
+                                color: document.body.classList.contains('dark-mode') ? '#e2e8f0' : '#374151'
+                            }
+                        },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) { // Events
+                                        const year = context.raw.x;
+                                        return `${context.raw.event} (${year < 0 ? Math.abs(year) + ' ' + translations[lang].bce : year})`;
+                                    } else { // Hypothetical birthdate
+                                        const year = context.raw.x;
+                                        return `${translations[lang].yourBirthdate}: ${year < 0 ? Math.abs(year) + ' ' + translations[lang].bce : year}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        async function calculateEra() {
+            try {
+                const loading = document.getElementById('loading');
+                loading.style.display = 'block';
+                const firstName = document.getElementById('firstName').value.trim(); // Get first name
+                const birthdateInput = document.getElementById('birthdate').value;
+                const yearsBack = parseInt(document.getElementById('yearsBack').value);
+                currentYearsBack = yearsBack; // Update global variable
+                const lang = document.getElementById('language').value;
+                const resultDiv = document.getElementById('result');
+                const timelineChartCanvas = document.getElementById('timelineChart');
+                const mapDiv = document.getElementById('map');
+
+                // Clear previous results and hide elements
+                resultDiv.innerHTML = '';
+                timelineChartCanvas.classList.add('hidden');
+                mapDiv.classList.add('hidden');
+                document.getElementById('quiz').classList.add('hidden');
+                document.getElementById('quizResult').innerHTML = ''; // Clear quiz result
+
+                if (timelineChartInstance) timelineChartInstance.destroy();
+                if (mapInstance) mapInstance.remove();
+
+
+                if (!birthdateInput) {
+                    resultDiv.innerHTML = `<p class="error-message">${translations[lang].noBirthdate}</p>`;
+                    loading.style.display = 'none';
+                    return;
+                }
+
+                const birthdate = new Date(birthdateInput);
+                if (isNaN(birthdate.getTime())) {
+                    resultDiv.innerHTML = `<p class="error-message">${translations[lang].invalidDate}</p>`;
+                    loading.style.display = 'none';
+                    return;
+                }
+
+                const hypotheticalYear = birthdate.getFullYear() - yearsBack;
+                const currentYear = new Date().getFullYear();
+                const ageInEra = yearsBack === 0 ? currentYear - birthdate.getFullYear() : null;
+
+                const aiData = await fetchEraDescription(hypotheticalYear, lang); // This is still a placeholder
+                const eraData = eras[yearsBack] ? eras[yearsBack][lang] : {
+                    name: translations[lang].unknownEra,
+                    description: aiData.description, // Use AI placeholder description
+                    figures: [],
+                    events: [],
+                    video: 'https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4', // Default fallback video
+                    name_format: { text: lang === 'ar' ? "غير معروف" : "Unknown", era_name: lang === 'ar' ? "القديم الغامض" : "Mysterious Ancient" }
+                };
+
+                updateBackgroundVideo(eraData.video);
+
+                const sanitizedYear = hypotheticalYear < 0 ? `${Math.abs(hypotheticalYear)} ${translations[lang].bce.toLowerCase()}` : hypotheticalYear.toString();
+                const formattedDate = yearsBack === 0 ? translations[lang].now : `${birthdate.getDate().toString().padStart(2, '0')}/${(birthdate.getMonth() + 1).toString().padStart(2, '0')}/${sanitizedYear}`;
+
+                let figuresHtml = eraData.figures.length > 0 ? `
+                    <h3 class="text-xl font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">${translations[lang].figures}:</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                        ${eraData.figures.map(figure => `
+                            <div class="text-center p-3 border rounded-lg shadow-sm bg-gray-50 dark:bg-gray-700 flex flex-col items-center">
+                                <img src="${sanitizeText(figure.image)}" alt="${sanitizeText(figure.name)}" class="w-24 h-24 mx-auto rounded-full object-cover mb-2 border-2 border-indigo-600">
+                                <p class="font-semibold text-gray-800 dark:text-gray-200">${sanitizeText(figure.name)}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">${sanitizeText(figure.role)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '';
+
+                let eventsHtml = eraData.events.length > 0 ? `
+                    <h3 class="text-xl font-medium text-gray-700 dark:text-gray-300 mt-6 mb-2">${translations[lang].events}:</h3>
+                    <ul class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+                        ${eraData.events.map(event => `
+                            <li><strong>${event.year < 0 ? Math.abs(event.year) + ' ' + translations[lang].bce : event.year}</strong>: ${sanitizeText(event.event)}</li>
+                        `).join('')}
+                    </ul>
+                ` : '';
+
+                let whatIfHtml = ageInEra !== null ? `
+                    <h3 class="text-xl font-medium text-gray-700 dark:text-gray-300 mt-6 mb-2">${translations[lang].ageInEra}:</h3>
+                    <p class="text-gray-700 dark:text-gray-300">${translations[lang].whatIf} ${ageInEra} ${lang === 'ar' ? 'سنة' : 'years old'} ${lang === 'ar' ? 'في هذا العصر' : 'in this era'}.</p>
+                ` : '';
+
+                let nameInEraHtml = '';
+                if (firstName) {
+                    const nameFormat = eraData.name_format || { text: lang === 'ar' ? "غير معروف" : "Unknown", era_name: lang === 'ar' ? "القديم الغامض" : "Mysterious Ancient" };
+                    nameInEraHtml = `
+                        <h3 class="text-xl font-medium text-gray-700 dark:text-gray-300 mt-6 mb-2">${translations[lang].nameInEra}:</h3>
+                        <p class="text-gray-700 dark:text-gray-300">${translations[lang].nameFormat
+                            .replace('{name}', sanitizeText(firstName))
+                            .replace('{format}', sanitizeText(nameFormat.text))
+                            .replace('{eraName}', sanitizeText(nameFormat.era_name))}
+                        </p>
+                    `;
+                }
+
+                // Display result
+                resultDiv.innerHTML = `
+                    <h2 class="text-2xl font-semibold text-indigo-600 dark:text-indigo-400 mb-2">${translations[lang].era}: ${sanitizeText(eraData.name)}</h2>
+                    <p class="mt-2 text-gray-700 dark:text-gray-300"><strong>${translations[lang].description}:</strong> ${sanitizeText(eraData.description)}</p>
+                    <p class="mt-2 text-gray-700 dark:text-gray-300"><strong>${translations[lang].yourBirthdate}:</strong> <span dir="ltr">${formattedDate}</span></p>
+                    ${whatIfHtml}
+                    ${nameInEraHtml}
+                    ${figuresHtml}
+                    ${eventsHtml}
+                `;
+
+                // Generate personality quiz
+                generateQuiz(yearsBack, lang);
+
+                // Setup timeline chart
+                if (eraData.events && eraData.events.length > 0) {
+                    timelineChartCanvas.classList.remove('hidden');
+                    const ctx = timelineChartCanvas.getContext('2d');
+                    createTimelineChart(ctx, eraData.events.map(event => ({ x: event.year, y: 0, event: event.event })), hypotheticalYear, lang);
+                } else {
+                    timelineChartCanvas.classList.add('hidden');
+                }
+
+                // Setup map
+                if (eraData.events && eraData.events.some(e => e.location)) {
+                    mapDiv.classList.remove('hidden');
+                    // Initialize map and set view, then invalidateSize
+                    mapInstance = L.map('map').setView([20, 0], 2);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                        maxZoom: 18
+                    }).addTo(mapInstance);
+                    eraData.events.forEach(event => {
+                        if (event.location && Array.isArray(event.location) && event.location.length === 2) {
+                            L.marker(event.location)
+                                .addTo(mapInstance)
+                                .bindPopup(`${sanitizeText(event.event)} (${event.year < 0 ? Math.abs(event.year) + ' ' + translations[lang].bce : event.year})`);
+                        }
+                    });
+                    // Invalidate size after map becomes visible
+                    setTimeout(() => {
+                        if (mapInstance) mapInstance.invalidateSize();
+                    }, 0);
+                } else {
+                    mapDiv.classList.add('hidden');
+                }
+
+                loading.style.display = 'none';
+            } catch (error) {
+                console.error('Error in calculateEra:', error);
+                document.getElementById('result').innerHTML = `<p class="error-message">${translations[lang].unknownEraDescription}</p>`;
+                document.getElementById('loading').style.display = 'none';
+                // Ensure map and chart are hidden on error
+                document.getElementById('timelineChart').classList.add('hidden');
+                document.getElementById('map').classList.add('hidden');
+                document.getElementById('quiz').classList.add('hidden');
+                if (timelineChartInstance) timelineChartInstance.destroy();
+                if (mapInstance) mapInstance.remove();
+            }
+        }
+
+        function sanitizeText(text) {
+            if (typeof text !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveResult() {
+            try {
+                const lang = document.getElementById('language').value;
+                const birthdate = document.getElementById('birthdate').value;
+                const yearsBack = document.getElementById('yearsBack').value;
+                const result = document.getElementById('result').innerHTML;
+                const savedResults = JSON.parse(localStorage.getItem('savedResults') || '[]');
+                savedResults.push({ birthdate, yearsBack, result, timestamp: new Date().toISOString() });
+                localStorage.setItem('savedResults', JSON.stringify(savedResults));
+                alert(translations[lang].saved);
+            } catch (error) {
+                console.error('Error saving result:', error);
+                alert(translations[lang].saveError);
+            }
+        }
+
+        function shareResult() {
+            try {
+                const lang = document.getElementById('language').value;
+                const eraName = eras[parseInt(document.getElementById('yearsBack').value)]?.[lang]?.name || translations[lang].unknownEra;
+                const shareText = encodeURIComponent(`${lang === 'ar' ? 'اكتشفت أنني كنت سأعيش في' : 'I discovered I would have lived in'} ${eraName}! ${lang === 'ar' ? 'جرب بنفسك' : 'Try it yourself'}`);
+                const shareUrl = `https://x.com/intent/tweet?text=${shareText}`;
+                window.open(shareUrl, '_blank');
+                // Removed alert here, as it can be annoying, user will see the tweet window.
+            } catch (error) {
+                console.error('Error sharing result:', error);
+                alert(translations[lang].shareError); // Only alert on actual error
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const savedLang = localStorage.getItem('preferredLanguage') || 'ar';
+                document.getElementById('language').value = savedLang;
+                
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    document.getElementById('themeToggle').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>';
+                }
+
+                document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('birthdate').setAttribute('max', today);
+
+                // Set initial background video to current era's video or default
+                const initialYearsBack = parseInt(document.getElementById('yearsBack').value);
+                const initialEraVideo = eras[initialYearsBack]?.ar?.video || 'https://cdn.pixabay.com/video/2022/04/13/113984-698894260_large.mp4';
+                updateBackgroundVideo(initialEraVideo);
+
+                // Call changeLanguage to set initial UI texts and calculate results
+                changeLanguage();
+
+            } catch (error) {
+                console.error('DOM loading error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
